@@ -10,7 +10,7 @@ from src.model import LipidFusionNet
 from src.data_preprocessing import preprocess_smiles_data, preprocess_numerical_features
 from torch_geometric.data import Batch
 
-# 固定随机种子
+# Set random seed
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
@@ -28,19 +28,19 @@ def custom_collate(batch):
     return graph_batch, numerical_batch
 
 def load_best_model():
-    """根据 fold_val_loss.json 自动选择验证集loss最小的fold模型"""
+    """Automatically select the fold model with the lowest validation loss based on fold_val_loss.json"""
     with open("fold_val_loss.json", "r") as f:
         fold_losses = json.load(f)
 
     best_fold = min(fold_losses, key=fold_losses.get)
-    print(f"✅ 多次推理中，自动使用验证集最优fold：{best_fold}")
+    print(f"✅ Automatically using the best validation fold model in multiple inferences: {best_fold}")
 
     fold_number = int(best_fold.replace("fold", ""))
     model_path = f"lipid_fusion_net_finetuned_fold{fold_number}.pth"
 
     mpnn_hidden_dim = 128
     mpnn_layers = 3
-    mlp_input_dim = 813  # 注意：推理数据特征是813列
+    mlp_input_dim = 813  # Note: inference data feature has 813 columns
     mlp_hidden_dim = 64
     output_dim = 2
     model = LipidFusionNet(mpnn_hidden_dim, mpnn_layers, mlp_input_dim, mlp_hidden_dim, output_dim)
@@ -55,7 +55,7 @@ def load_best_model():
     return model
 
 def predict_top_bottom_once(model):
-    """每次推理复用同一个model"""
+    """Reuse the same model for each inference"""
     file_path = "../data/alternative_data_set.csv"
     graph_data = preprocess_smiles_data(file_path)
     numerical_data = preprocess_numerical_features(file_path)
@@ -64,7 +64,7 @@ def predict_top_bottom_once(model):
         list(zip(graph_data, numerical_data)),
         batch_size=32,
         collate_fn=custom_collate,
-        shuffle=False  # 推理绝对不shuffle
+        shuffle=False  # Do not shuffle during inference
     )
 
     predictions = []
@@ -88,7 +88,7 @@ def save_csv(df, path):
     df.to_csv(path, index=False)
 
 def save_frequency_table(all_samples, save_path):
-    """统计smiles出现频率并保存"""
+    """Count the frequency of smiles occurrences and save"""
     all_smiles = []
     for df in all_samples:
         all_smiles.extend(df['smiles'].tolist())
@@ -100,9 +100,9 @@ def save_frequency_table(all_samples, save_path):
 def main():
     all_top, all_middle, all_bottom = [], [], []
 
-    model = load_best_model()  # ⭐ 只加载一次模型！
+    model = load_best_model()  # ⭐ Load the model only once!
 
-    print("开始进行10次复用同一个模型的预测...")
+    print("Starting prediction 10 times using the same model...")
     for i in tqdm(range(10)):
         top_10, middle_10, bottom_10 = predict_top_bottom_once(model)
         all_top.append(top_10)
@@ -133,12 +133,12 @@ def main():
     save_dir = "../data/predict"
     os.makedirs(save_dir, exist_ok=True)
 
-    # 保存共有配方
+    # Save common formulations
     save_csv(common_top_df, os.path.join(save_dir, "common_top_10_hela_efficiency.csv"))
     save_csv(common_middle_df, os.path.join(save_dir, "common_middle_10_hela_efficiency.csv"))
     save_csv(common_bottom_df, os.path.join(save_dir, "common_bottom_10_hela_efficiency.csv"))
 
-    # 保存所有配方总表
+    # Save all formulations table
     total_top = pd.concat(all_top).drop_duplicates(subset=['smiles'])
     total_middle = pd.concat(all_middle).drop_duplicates(subset=['smiles'])
     total_bottom = pd.concat(all_bottom).drop_duplicates(subset=['smiles'])
@@ -147,12 +147,12 @@ def main():
     save_csv(total_middle, os.path.join(save_dir, "total_middle_10_hela_efficiency.csv"))
     save_csv(total_bottom, os.path.join(save_dir, "total_bottom_10_hela_efficiency.csv"))
 
-    # 统计频率并保存
+    # Count frequency and save
     save_frequency_table(all_top, os.path.join(save_dir, "freq_top_10_hela_efficiency.csv"))
     save_frequency_table(all_middle, os.path.join(save_dir, "freq_middle_10_hela_efficiency.csv"))
     save_frequency_table(all_bottom, os.path.join(save_dir, "freq_bottom_10_hela_efficiency.csv"))
 
-    print("✅ 复用同一个模型的多次推理全部完成！保存所有表格！")
+    print("✅ Multiple inferences using the same model completed! All tables saved!")
 
 if __name__ == "__main__":
     main()

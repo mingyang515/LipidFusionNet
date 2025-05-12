@@ -17,20 +17,20 @@ def custom_collate(batch):
     numerical_batch = torch.stack(numerical_data)
     return graph_batch, numerical_batch
 
-# 加载验证集loss最小的finetuned模型
+# Load the finetuned model with the minimum loss of the validation set
 def load_best_model():
     with open("fold_val_loss.json", "r") as f:
         fold_losses = json.load(f)
 
     best_fold = min(fold_losses, key=fold_losses.get)
-    print(f"✅ 选择验证集loss最小的fold：{best_fold}")
+    print(f"✅ Select the fold with the smallest validation set loss：{best_fold}")
 
     fold_number = int(best_fold.replace("fold", ""))
     model_path = f"lipid_fusion_net_finetuned_fold{fold_number}.pth"
 
     mpnn_hidden_dim = 128
     mpnn_layers = 3
-    mlp_input_dim = 815  # 注意：这里原来写的是815，不是813
+    mlp_input_dim = 815
     mlp_hidden_dim = 64
     output_dim = 2
     model = LipidFusionNet(mpnn_hidden_dim, mpnn_layers, mlp_input_dim, mlp_hidden_dim, output_dim)
@@ -41,7 +41,7 @@ def load_best_model():
 def main():
     model = load_best_model()
 
-    # 加载测试集
+    # Load the test set
     test_file = "../data/splits/test.csv"
     graph_data = preprocess_smiles_data(test_file)
     numerical_data = preprocess_numerical_features(test_file)
@@ -54,7 +54,7 @@ def main():
 
     total_mse, total_mae, total_pcc, total_r2, count = 0, 0, 0, 0, 0
 
-    # 评估
+    # evaluate
     with torch.no_grad():
         for graph_batch, numerical_batch in test_loader:
             output = model(graph_batch, numerical_batch)

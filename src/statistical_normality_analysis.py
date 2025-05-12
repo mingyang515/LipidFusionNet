@@ -57,11 +57,11 @@ def main():
         sw_true_p = shapiro(true_vals).pvalue
         sw_pred_p = shapiro(pred_vals).pvalue
 
-        print(f"真实值正态性 p = {sw_true_p:.4f} ({'正态' if sw_true_p > 0.05 else '非正态'})")
-        print(f"预测值正态性 p = {sw_pred_p:.4f} ({'正态' if sw_pred_p > 0.05 else '非正态'})")
+        print(f"Normality of true values p = {sw_true_p:.4f} ({'Normal' if sw_true_p > 0.05 else 'Non-normal'})")
+        print(f"Normality of predicted values p = {sw_pred_p:.4f} ({'Normal' if sw_pred_p > 0.05 else 'Non-normal'})")
 
         spearman_corr, spearman_p = spearmanr(true_vals, pred_vals)
-        print(f"Spearman 相关系数: {spearman_corr:.4f} (p = {spearman_p:.4e})")
+        print(f"Spearman correlation coefficient: {spearman_corr:.4f} (p = {spearman_p:.4e})")
 
 if __name__ == "__main__":
     main()

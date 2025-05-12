@@ -14,7 +14,7 @@ from src.model import LipidFusionNet
 from src.data_preprocessing import preprocess_smiles_data, preprocess_numerical_features
 
 # ------------------------------
-# 1. 固定所有Random种子
+# 1. Fix all Random seeds
 # ------------------------------
 def set_seed(seed=42):
     random.seed(seed)
@@ -27,7 +27,7 @@ def set_seed(seed=42):
 set_seed(42)
 
 # ------------------------------
-# 2. EarlyStopping机制
+# 2. EarlyStopping mechanism
 # ------------------------------
 class EarlyStopping:
     def __init__(self, patience=10, delta=0):
@@ -49,7 +49,7 @@ class EarlyStopping:
                 self.early_stop = True
 
 # ------------------------------
-# 3. 加载数据
+# 3. Load data
 # ------------------------------
 def load_split(file_path):
     graph_data = preprocess_smiles_data(file_path)
@@ -59,27 +59,27 @@ def load_split(file_path):
 train_graph, train_numerical = load_split("../data/splits/train.csv")
 
 # ------------------------------
-# 4. 定义模型参数
+# 4. Define the model parameters
 # ------------------------------
 batch_size = 32
-epochs = 100   # 【修改】：从原来的10 → 100
+epochs = 100   # From the original 10 to 100
 learning_rate = 0.001
 k_folds = 5
-patience = 10  # early stopping等待的轮数
+patience = 10  # early stopping: The number of rounds of waiting
 mpnn_hidden_dim = 128
 mpnn_layers = 3
 mlp_input_dim = train_numerical.shape[1]
 mlp_hidden_dim = 64
-num_tasks = 2  # 预测 Hela 和 Raw
+num_tasks = 2  # Predict Hela and Raw
 
 # ------------------------------
-# 5. 开始K-Fold训练
+# 5. Start the K-Fold training
 # ------------------------------
 
-# 把fold val loss结果记录下来
+# Record the result of the fold val loss
 fold_val_losses = {}
 
-# 开始K-Fold训练
+# Start the K-Fold training
 kf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
 fold = 0
 
@@ -89,14 +89,14 @@ for train_idx, val_idx in kf.split(train_graph):
 
     model = LipidFusionNet(mpnn_hidden_dim, mpnn_layers, mlp_input_dim, mlp_hidden_dim, num_tasks)
 
-    # 加载预训练参数（除了fc层）
+    # Load the pre-trained parameters (except for the fc layer)
     pretrained_dict = torch.load('lipid_fusion_net.pth')
     model_dict = model.state_dict()
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if "fc" not in k}
     model_dict.update(pretrained_dict)
     model.load_state_dict(model_dict)
 
-    # 重置输出层
+    # Reset the output layer
     model.fc = torch.nn.Linear(mpnn_hidden_dim + mlp_hidden_dim, num_tasks)
 
     optimizer = Adam(model.parameters(), lr=learning_rate)
@@ -127,7 +127,7 @@ for train_idx, val_idx in kf.split(train_graph):
 
         scheduler.step()
 
-        # 验证
+        # Verification
         model.eval()
         val_loss = 0
         with torch.no_grad():
@@ -144,16 +144,16 @@ for train_idx, val_idx in kf.split(train_graph):
             print(f"Early stopping at epoch {epoch+1}")
             break
 
-    # 保存本fold最优模型
+    # Save the fold optimal model
     save_path = f"lipid_fusion_net_finetuned_fold{fold}.pth"
     torch.save(early_stopping.best_model_state, save_path)
     print(f"Saved best model for Fold {fold} to {save_path}")
 
-    # 记录每个fold的最佳验证损失
+    # Record the best validation loss for each fold
     fold_val_losses[f"fold{fold}"] = early_stopping.best_loss
 
-# 保存 fold_val_loss.json
+# Save fold_val_loss.json
 with open("fold_val_loss.json", "w") as f:
     json.dump(fold_val_losses, f, indent=4)
 
-print("✅ 全部Fold训练完成，已保存fold_val_loss.json！")
+print("✅ All Fold training has been completed and fold_val_loss.json has been saved!")
